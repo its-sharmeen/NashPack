@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+
+<section class="hero">
+  <div>
+    <div class="eyebrow">AUTOMATED LABEL VERIFICATION</div>
+    <h1>Every packet makes seven promises. This checks that it kept them.</h1>
+    <p class="lede">
+      Under the Legal Metrology (Packaged Commodities) Rules, 2011, every pre-packed
+      item sold in India must declare who made it, how much is inside, what it costs,
+      when it was packed, and who to call if something's wrong. Manually checking that
+      across a market's worth of packets is what this tool exists to speed up: scan a
+      label photo and get a declaration-by-declaration finding in seconds.
+    </p>
+    <p style="margin-top:24px;">
+      <a href="{{ url_for('scan') }}" class="btn btn-primary-action">Scan a label</a>
+      <a href="{{ url_for('dashboard') }}" class="btn secondary" style="margin-left:10px;">View register</a>
+      <a href="{{ url_for('rules_list') }}" class="btn secondary" style="margin-left:10px;">Rules list</a>
+    </p>
+  </div>
+  <div class="hero-figure">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:var(--ink-soft); margin-bottom:10px;">RULE 6 — MANDATORY DECLARATIONS CHECKED</div>
+    <div class="rule-line"><span>Manufacturer / packer / importer</span><b>01</b></div>
+    <div class="rule-line"><span>Common / generic name</span><b>02</b></div>
+    <div class="rule-line"><span>Net quantity</span><b>03</b></div>
+    <div class="rule-line"><span>Month &amp; year of mfg./pkg.</span><b>04</b></div>
+    <div class="rule-line"><span>Maximum Retail Price</span><b>05</b></div>
+    <div class="rule-line"><span>Consumer care details</span><b>06</b></div>
+    <div class="rule-line"><span>Country of origin (imported)</span><b>07</b></div>
+  </div>
+</section>
+
+<div class="stat-strip">
+  <div class="stat-cell"><span class="stat-label">Labels scanned</span><span class="stat-num">{{ stats.total }}</span></div>
+  <div class="stat-cell"><span class="stat-label">Fully compliant</span><span class="stat-num" style="color:var(--verified-green);">{{ stats.compliant }}</span></div>
+  <div class="stat-cell"><span class="stat-label">Flagged non-compliant</span><span class="stat-num" style="color:var(--seal-red);">{{ stats.non_compliant }}</span></div>
+  <div class="stat-cell"><span class="stat-label">Avg. compliance score</span><span class="stat-num">{{ stats.avg_score }}%</span></div>
+</div>
+
+<h2>Recent scans</h2>
+{% if recent %}
+<div class="table-scroll">
+<table class="ledger">
+  <thead><tr><th>ID</th><th>Product</th><th>Status</th><th>Score</th><th>Scanned</th><th></th></tr></thead>
+  <tbody>
+    {% for s in recent %}
+    <tr>
+      <td class="scan-id">#{{ "%04d"|format(s.id) }}</td>
+      <td>{{ s.product_label or "Unlabelled scan" }}</td>
+      <td>
+        {% if s.status == 'COMPLIANT' %}<span class="stamp compliant">COMPLIANT</span>
+        {% elif s.status == 'COMPLIANT_WITH_WARNINGS' %}<span class="stamp warn">WITH WARNINGS</span>
+        {% else %}<span class="stamp noncompliant">NON-COMPLIANT</span>{% endif %}
+      </td>
+      <td class="num">{{ s.score }}%</td>
+      <td class="mono" style="font-size:0.8rem; color:var(--ink-soft);">{{ s.created_at[:16] }}</td>
+      <td><a href="{{ url_for('result', scan_id=s.id) }}">View</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p style="color:var(--ink-soft);">No scans yet. <a href="{{ url_for('scan') }}">Scan your first label</a> to populate the register.</p>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}New inspection{% endblock %}
+{% block content %}
+<div class="eyebrow">FIELD INSPECTION / PS 26034</div>
+<h1>Inspect a packaged commodity</h1>
+<p style="color:var(--ink-soft);max-width:780px;">Use one image for a quick check or capture the <strong>front + back + side panels in one inspection</strong>. Physical lettering measurement uses high-resolution glyph CV plus a physical scale source; a fixed-size 50 mm QR reference is used for physical scale.</p>
+
+<div class="doc-panel">
+<form method="POST" action="{{ url_for('scan') }}" enctype="multipart/form-data" id="scanForm">
+  <div class="field"><label for="product_label">Product / inspection reference</label><input type="text" id="product_label" name="product_label" placeholder="e.g. packaged food, cosmetics, textile, electronics"></div>
+
+  <div class="field"><label>Physical scale reference</label><div class="check-note">For Rule 7 millimetre lettering measurement, place the supplied <strong>50 mm QR calibration reference</strong> beside the package on the same plane. No package dimensions are entered.</div></div>
+
+  <div class="field">
+    <label>Package views</label>
+    <div class="check-note" style="margin-bottom:10px;">Add up to 8 images. For best applicability and declaration coverage, include the principal/front panel and the back/side declaration panel.</div>
+    <label class="dropzone" id="dropzone" for="imageInput">
+      <div id="dzText"><strong>Choose multiple images</strong><br><span style="font-size:.78rem;">Front + back + side · JPG / PNG / WEBP · up to 16 MB each</span></div>
+      <div id="thumbGrid" class="thumb-grid"></div>
+      <input type="file" id="imageInput" name="images" accept="image/png,image/jpeg,image/webp,image/bmp" multiple required>
+    </label>
+  </div>
+
+  <div class="camera-panel">
+    <div class="camera-head"><div><div class="eyebrow">CAMERA / AR</div><strong>Capture or measure with QR reference</strong><div class="check-note">Use ordinary camera capture for the inspection, or open the precision workspace for high-resolution glyph measurement and automatic QR physical-scale calibration.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn secondary" href="{{ url_for('ar_measure') }}">Open QR measurement</a><button type="button" class="btn secondary" id="cameraStart">Open camera</button></div></div>
+    <div id="cameraBox" style="display:none;margin-top:14px;">
+      <video id="cameraVideo" autoplay playsinline muted style="width:100%;max-height:480px;background:#111;display:block;"></video>
+      <canvas id="cameraCanvas" style="display:none;"></canvas>
+      <div class="camera-controls"><button type="button" class="btn" id="captureBtn">Capture this view</button><button type="button" class="btn secondary" id="cameraStop">Stop camera</button></div>
+      <div id="cameraHint" class="check-note" style="margin-top:8px;">Camera capture: keep the label panel visible. For physical mm measurement, keep the <strong>50 mm QR reference</strong> visible on the same plane.</div>
+    </div>
+  </div>
+
+  <div class="marker-note"><div class="marker-icon">mm</div><div><strong>How font measurement works</strong><br><span>The system identifies the declaration. High-resolution computer vision isolates the actual glyphs and measures their character height. The fixed-size QR physical reference converts pixels to millimetres. If no defensible scale is available, the system reports pixels + REVIEW rather than inventing mm.</span></div></div>
+  <button type="submit" class="btn" id="submitBtn">Run multi-view compliance inspection</button>
+</form>
+</div>
+
+<style>
+.thumb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:14px}.thumb-card{border:1px solid var(--rule-strong);background:#fff;padding:6px}.thumb-card img{width:100%;height:100px;object-fit:cover;display:block}.thumb-card small{display:block;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.camera-panel{margin-top:18px;border:1px solid var(--rule-strong);padding:16px;background:rgba(255,255,255,.5)}.camera-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.camera-controls{display:flex;gap:10px;margin-top:10px}.marker-note{display:flex;gap:12px;align-items:center;margin:18px 0;padding:13px;border:1px dashed var(--rule-strong);background:#f7f2e9}.marker-icon{width:46px;height:46px;border:2px solid var(--ink);display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;font-weight:700}.dragover{outline:2px solid var(--ink)}@media(max-width:650px){.camera-head{flex-direction:column}.camera-controls{flex-wrap:wrap}}
+</style>
+<script>
+const input=document.getElementById('imageInput'), grid=document.getElementById('thumbGrid'), form=document.getElementById('scanForm'), submit=document.getElementById('submitBtn');
+let files=[];
+function renderFiles(){grid.innerHTML=''; files.forEach((f,i)=>{const card=document.createElement('div');card.className='thumb-card';const img=document.createElement('img');img.src=URL.createObjectURL(f);const sm=document.createElement('small');sm.textContent=(i+1)+'. '+f.name;card.append(img,sm);grid.append(card);});}
+function syncInput(){const dt=new DataTransfer();files.forEach(f=>dt.items.add(f));input.files=dt.files;renderFiles();}
+input.addEventListener('change',()=>{files=Array.from(input.files).slice(0,8);syncInput();});
+['dragenter','dragover'].forEach(e=>document.getElementById('dropzone').addEventListener(e,ev=>{ev.preventDefault();document.getElementById('dropzone').classList.add('dragover')}));
+['dragleave','drop'].forEach(e=>document.getElementById('dropzone').addEventListener(e,ev=>{ev.preventDefault();document.getElementById('dropzone').classList.remove('dragover')}));
+document.getElementById('dropzone').addEventListener('drop',e=>{files=Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/')).slice(0,8);syncInput();});
+let stream=null;
+document.getElementById('cameraStart').onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});document.getElementById('cameraVideo').srcObject=stream;document.getElementById('cameraBox').style.display='block';}catch(e){document.getElementById('cameraHint').textContent='Camera unavailable. Use the multi-image upload instead.';}};
+document.getElementById('captureBtn').onclick=()=>{const v=document.getElementById('cameraVideo'),c=document.getElementById('cameraCanvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(blob=>{const f=new File([blob],`camera-${Date.now()}.jpg`,{type:'image/jpeg'});if(files.length<8){files.push(f);syncInput();document.getElementById('cameraHint').textContent='Captured. You can capture another panel.';}},'image/jpeg',.94);};
+document.getElementById('cameraStop').onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());document.getElementById('cameraBox').style.display='none';};
+form.addEventListener('submit',()=>{submit.textContent='Analysing package views…';submit.disabled=true;});
+</script>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Officer sign in{% endblock %}
+{% block content %}
+
+<div class="eyebrow">RESTRICTED ACCESS</div>
+<h1>Officer sign in</h1>
+<p style="color:var(--ink-soft); max-width:520px;">
+  Scanning, the enforcement register and compliance reports are restricted
+  to authenticated Legal Metrology officers/admins. Use the demo
+  credentials configured in <code>LM_AUTH_USERS</code> (see
+  <code>.env.example</code>).
+</p>
+
+<div class="doc-panel" style="max-width:360px;">
+  <form method="POST">
+    <div class="field">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <button type="submit" class="btn">Sign in</button>
+  </form>
+</div>
+
+{% endblock %}

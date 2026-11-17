@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Rules list{% endblock %}
+{% block content %}
+<div class="workspace-head rules-head">
+  <div><div class="eyebrow">LEGAL METROLOGY REFERENCE</div><h1>Packaged Commodities Rules</h1><p>Rule register used by NaShPack for scope, declaration, presentation, commodity-specific, inspection and administrative checks.</p></div>
+  <a class="btn secondary" href="{{ url_for('index') }}">Back to home</a>
+</div>
+
+{% for group in groups %}
+<section class="section-card rules-group">
+  <div class="section-head"><div><div class="section-eyebrow">RULE GROUP</div><h2>{{ group.name }}</h2></div><span class="section-count">{{ group.items|length }} rules</span></div>
+  <div class="rule-register">
+    {% for item in group.items %}
+    <div class="rule-register-row"><div class="rule-register-id">{{ item.id }}</div><div><strong>{{ item.title }}</strong><small>{{ item.mode|replace('_',' ') }}</small></div></div>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block content %}
+
+<div class="eyebrow">ENFORCEMENT REGISTER</div>
+<h1>All scans</h1>
+
+<div class="stat-strip">
+  <div class="stat-cell"><span class="stat-label">Total</span><span class="stat-num">{{ stats.total }}</span></div>
+  <div class="stat-cell"><span class="stat-label">Compliant</span><span class="stat-num" style="color:var(--verified-green);">{{ stats.compliant }}</span></div>
+  <div class="stat-cell"><span class="stat-label">With warnings</span><span class="stat-num" style="color:var(--amber);">{{ stats.warnings }}</span></div>
+  <div class="stat-cell"><span class="stat-label">Non-compliant</span><span class="stat-num" style="color:var(--seal-red);">{{ stats.non_compliant }}</span></div>
+  <div class="stat-cell"><span class="stat-label">Needs rescan</span><span class="stat-num">{{ stats.needs_rescan }}</span></div>
+  <div class="stat-cell"><span class="stat-label">Avg. score</span><span class="stat-num">{{ stats.avg_score }}%</span></div>
+</div>
+
+<form method="GET" action="{{ url_for('dashboard') }}" class="search-bar">
+  <input type="text" name="q" value="{{ query or '' }}" placeholder="Search by product name, scan ID or any detected text...">
+  <select name="status">
+    <option value="" {% if not status_filter %}selected{% endif %}>All statuses</option>
+    <option value="COMPLIANT" {% if status_filter == 'COMPLIANT' %}selected{% endif %}>Compliant</option>
+    <option value="COMPLIANT_WITH_WARNINGS" {% if status_filter == 'COMPLIANT_WITH_WARNINGS' %}selected{% endif %}>With warnings</option>
+    <option value="NON_COMPLIANT" {% if status_filter == 'NON_COMPLIANT' %}selected{% endif %}>Non-compliant</option>
+    <option value="REQUIRES_RESCAN" {% if status_filter == 'REQUIRES_RESCAN' %}selected{% endif %}>Requires rescan</option>
+    <option value="ERROR" {% if status_filter == 'ERROR' %}selected{% endif %}>Error</option>
+  </select>
+  <button type="submit" class="btn">Search</button>
+  {% if query or status_filter %}
+    <a href="{{ url_for('dashboard') }}" style="align-self:center;">Clear</a>
+  {% endif %}
+</form>
+
+{% if scans %}
+<div class="table-scroll">
+<table class="ledger">
+  <thead>
+    <tr><th>ID</th><th>Product</th><th>Status</th><th>Score</th><th>Missing</th><th>Warnings</th><th>Scanned (UTC)</th><th colspan="3"></th></tr>
+  </thead>
+  <tbody>
+    {% for s in scans %}
+    <tr>
+      <td class="scan-id">#{{ "%04d"|format(s.id) }}</td>
+      <td>{{ s.product_label or "Unlabelled scan" }}</td>
+      <td>
+        {% if s.status == 'COMPLIANT' %}<span class="stamp compliant">COMPLIANT</span>
+        {% elif s.status == 'COMPLIANT_WITH_WARNINGS' %}<span class="stamp warn">WARNINGS</span>
+        {% elif s.status == 'REQUIRES_RESCAN' %}<span class="stamp warn">RESCAN</span>
+        {% elif s.status == 'ERROR' %}<span class="stamp noncompliant">ERROR</span>
+        {% else %}<span class="stamp noncompliant">NON-COMPLIANT</span>{% endif %}
+      </td>
+      <td class="num">{{ s.score }}%</td>
+      <td class="num">{{ s.mandatory_missing }}</td>
+      <td class="num">{{ s.warnings }}</td>
+      <td class="mono" style="font-size:0.8rem; color:var(--ink-soft);">{{ s.created_at[:16] }}</td>
+      <td><a href="{{ url_for('result', scan_id=s.id) }}">View</a></td>
+      <td><a href="{{ url_for('download_report', scan_id=s.id) }}">PDF</a></td>
+      <td><a href="{{ url_for('download_report_csv', scan_id=s.id) }}">CSV</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p style="color:var(--ink-soft);">
+  {% if query or status_filter %}
+    No scans match that search. <a href="{{ url_for('dashboard') }}">Clear filters</a>.
+  {% else %}
+    The register is empty. <a href="{{ url_for('scan') }}">Scan a label</a> to begin.
+  {% endif %}
+</p>
+{% endif %}
+
+{% endblock %}

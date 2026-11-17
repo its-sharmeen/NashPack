@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Inspection #{{ "%04d"|format(scan.id) }}{% endblock %}
+{% block content %}
+<div class="result-head">
+  <div>
+    <div class="eyebrow">INSPECTION RESULT</div>
+    <h1>{{ presentation.header.product }}</h1>
+    <p>Inspection #{{ "%04d"|format(scan.id) }} · {{ scan.created_at }}</p>
+  </div>
+  <div class="result-actions">
+    <a class="btn secondary" href="{{ url_for('download_report',scan_id=scan.id) }}">PDF report</a>
+    <a class="btn secondary" href="{{ url_for('download_report_csv',scan_id=scan.id) }}">CSV report</a>
+    <a class="btn" href="{{ url_for('ar_measure') }}">Add QR views</a>
+  </div>
+</div>
+
+<section class="result-hero verdict-{{ presentation.header.verdict|lower }}">
+  <div>
+    <span class="status-kicker">SCREENING RESULT</span>
+    <div class="hero-status">{{ presentation.header.verdict_label }}</div>
+    <p>Based on the package views supplied for this inspection.</p>
+  </div>
+  <div class="hero-score"><span>Score</span><strong>{{ presentation.header.evidence_score }}%</strong></div>
+</section>
+
+<div class="summary-grid result-summary-grid">
+  {% for m in presentation.metrics %}
+  <div class="summary-card"><span>{{ m.label }}</span><strong>{{ m.value }}</strong></div>
+  {% endfor %}
+</div>
+
+<section class="section-card">
+  <div class="section-head">
+    <div><div class="section-eyebrow">01 · SCOPE</div><h2>Applicability</h2></div>
+    <span class="status-badge review">{{ presentation.applicability.state }}</span>
+  </div>
+  <div class="app-grid">
+    <div><strong class="scope-value">{{ presentation.applicability.category }}</strong><small>Commodity category</small></div>
+    <div><strong class="scope-value small">{{ presentation.applicability.context }}</strong><small>Package context</small></div>
+    <div><strong>Assessment</strong><p>{{ presentation.applicability.reason }}</p></div>
+  </div>
+</section>
+
+<section class="section-card inspection-section">
+  <div class="section-head"><div><div class="section-eyebrow">02 · EVIDENCE</div><h2>Inspection views</h2><p class="section-note">Package images used for this inspection, including annotated evidence where available.</p></div><span class="section-count">{{ presentation.views|length }} views</span></div>
+  <div class="evidence-grid">
+    {% for im in presentation.views %}
+    <article><div class="view-label">VIEW {{ im.index }}</div><img src="{{ url_for('static',filename=im.image_path) }}" alt="Package view {{ im.index }}">
+      {% if im.annotation and im.annotation.web_path %}<details><summary>Show annotation</summary><img src="{{ url_for('static',filename=im.annotation.web_path) }}?v={{ scan.id }}-{{ im.index }}" alt="Annotated view"></details>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section-card declaration-section">
+  <div class="section-head">
+    <div>
+      <div class="section-eyebrow">03 · DECLARATIONS + RULE 7</div>
+      <h2>Applicable Legal Metrology declarations</h2>
+      <p class="section-note">Only applicable Rule 6 declarations are shown. Each appears once; its final font height is the median of calibrated views. Rule 7 is shown as measured height versus the assigned minimum.</p>
+    </div>
+    <span class="section-count">{{ presentation.declarations|length }} applicable</span>
+  </div>
+
+  {% if presentation.declarations %}
+  <div class="declaration-table unified legal-table">
+    <div class="declaration-head legal-head">
+      <span>Declaration</span><span>Detected value</span><span>Status</span><span>Font height / Rule 7</span><span>Details</span>
+    </div>
+    {% for row in presentation.declarations %}
+    <div class="declaration-row unified-row legal-row status-{{ row.status|lower }}">
+      <div><strong>{{ row.label }} <span class="mandatory-badge {{ 'conditional' if row.mandatory_badge == 'A/M' else '' }}">{{ row.mandatory_badge }}</span></strong><small>{{ row.rule }}{% if row.applicability != 'APPLICABLE' %} · {{ row.applicability|replace('_',' ') }}{% endif %}</small></div>
+      <div class="declaration-value-cell">{{ row.value if row.value is not none and row.value != '' else 'Not detected' }}</div>
+      <div><span class="status-badge {{ row.status|lower }}">{{ row.status_label }}</span></div>
+      <div class="font-result-cell">
+        {% if row.font %}
+          <strong>{{ '%.2f'|format(row.font.height_mm) }} mm</strong>
+          {% if row.font.minimum_mm is not none %}
+            <span class="rule7-line">Required {{ '%.2f'|format(row.font.minimum_mm) }} mm</span>
+            <span class="status-badge compact {{ row.font.rule7_status|lower }}">Rule 7 · {{ row.font.rule7_status_label }}</span>
+          {% else %}
+            <span class="status-badge compact review">Rule 7 · REVIEW</span>
+          {% endif %}
+          <small>{{ row.font.view_count }} calibrated view{{ '' if row.font.view_count == 1 else 's' }}</small>
+        {% else %}
+          <span class="muted">Not measured</span>
+          <span class="status-badge compact review">Rule 7 · REVIEW</span>
+        {% endif %}
+      </div>
+      <div class="details-cell">
+        {% if row.font %}
+        <details class="glyph-details">
+          <summary>Open details</summary>
+          <div class="glyph-panel">
+            <div class="detail-summary-grid">
+              <div><span>Final height</span><strong>{{ '%.3f'|format(row.font.height_mm) }} mm</strong></div>
+              <div><span>Rule 7 minimum</span><strong>{% if row.font.minimum_mm is not none %}{{ '%.3f'|format(row.font.minimum_mm) }} mm{% else %}Not assigned{% endif %}</strong></div>
+              <div><span>Result</span><strong>{{ row.font.rule7_status_label }}</strong></div>
+              <div><span>Views</span><strong>{{ row.font.view_count }}</strong></div>
+            </div>
+            <p class="detail-reason">{{ row.font.status_reason }}</p>
+            <p class="glyph-note">Final height = median of calibrated view measurements. Glyph entries are detected components; the system does not guess semantic character identities.</p>
+            {% for view in row.font.views %}
+            <div class="glyph-view">
+              <div class="glyph-view-head"><strong>View {{ view.view or '—' }}</strong><span>{{ view.height_mm if view.height_mm is not none else '—' }} mm · {{ view.rule7_status|replace('_',' ') }}</span></div>
+              {% if view.glyphs %}
+              <div class="glyph-grid">
+                {% for g in view.glyphs %}<div><b>Glyph {{ g.index }}</b><span>{{ g.height_mm }} mm</span></div>{% endfor %}
+              </div>
+              {% else %}<span class="muted">No individual glyph components retained.</span>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </details>
+        {% else %}<span class="muted">No calibrated evidence.</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">No applicable Rule 6 declaration was available for this package. Review applicability evidence before treating the absence as compliant.</div>
+  {% endif %}
+
+  <div class="declaration-findings">
+    <div><span>Declaration findings</span><strong>{{ presentation.findings.fail|length }} failed · {{ presentation.declarations|selectattr('missing','equalto',true)|list|length }} missing</strong></div>
+    <div><span>Measurement</span><strong>Font size is shown in each declaration row</strong></div>
+    <p>Rule 7 lettering measurement is presented alongside the applicable declaration. A missing declaration is counted separately from a declaration that was detected but failed a compliance check.</p>
+  </div>
+
+  <div class="visual-summary">
+    <div><span>Overall readability</span><strong>{{ presentation.visual_summary.readability }}</strong></div>
+    <div><span>Overall placement</span><strong>{{ presentation.visual_summary.placement }}</strong></div>
+    <div><span>Visual status</span><span class="status-badge {{ presentation.visual_summary.status|lower }}">{{ presentation.visual_summary.status_label }}</span></div>
+  </div>
+</section>
+
+<section class="section-card compact-rule-section">
+  <div class="section-head">
+    <div><div class="section-eyebrow">04 · OTHER RULES</div><h2>Rule-by-rule analysis</h2><p class="section-note">Rule 6 declarations and image-presentation Rules 7–9 are already represented above and are not repeated here.</p></div>
+  </div>
+  {% if presentation.other_rules %}
+  <div class="rule-list">
+    {% for row in presentation.other_rules %}
+    <details class="rule-item" {% if row.status in ['FAIL','REVIEW'] %}open{% endif %}>
+      <summary><span class="rule-code">{{ row.rule }}</span><span>{{ row.requirement|striptags|truncate(120) }}</span><span class="status-badge {{ row.status|lower }}">{{ row.status_label }}</span></summary>
+      <div class="rule-detail"><p><b>Detected:</b> {{ row.value if row.value is not none and row.value != '' else '—' }}</p><p><b>Applicability:</b> {{ row.applicability }}</p><p><b>Assessment:</b> {{ row.reason }}</p></div>
+    </details>
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty-state">No additional rule records.</div>{% endif %}
+</section>
+
+{% if presentation.findings.warnings %}
+<section class="section-card warning-card">
+  <div class="section-head"><div><div class="section-eyebrow">ACTION ITEMS</div><h2>Warnings</h2></div></div>
+  {% for w in presentation.findings.warnings %}<div class="warning-row"><span>!</span><p>{{ w }}</p></div>{% endfor %}
+</section>
+{% endif %}
+
+
+{% endblock %}
